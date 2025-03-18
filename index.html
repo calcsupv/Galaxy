@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宇宙のシーン（太陽と惑星）</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.130/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.130/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        var scene = new THREE.Scene();
+        var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        var renderer = new THREE.WebGLRenderer({ antialias: true }); // アンチエイリアス有効
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio); // 高解像度表示（Retinaディスプレイ対応）
+        document.body.appendChild(renderer.domElement);
+
+        // 背景の星
+        var starsGeometry = new THREE.BufferGeometry();
+        var starsCount = 30000;
+        var positions = new Float32Array(starsCount * 3);
+        for (var i = 0; i < starsCount; i++) {
+            positions[i * 3] = (Math.random() - 0.5) * 2000;
+            positions[i * 3 + 1] = (Math.random() - 0.5) * 2000;
+            positions[i * 3 + 2] = (Math.random() - 0.5) * 2000;
+        }
+        starsGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        var starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7 });
+        var stars = new THREE.Points(starsGeometry, starsMaterial);
+        scene.add(stars);
+
+        // 太陽
+        var sunGeometry = new THREE.SphereGeometry(3, 32, 32);
+        var sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+        var sun = new THREE.Mesh(sunGeometry, sunMaterial);
+        scene.add(sun);
+
+        // 太陽の光
+        var sunLight = new THREE.PointLight(0xffffaa, 2, 100);
+        sunLight.position.set(0, 0, 0);
+        scene.add(sunLight);
+
+        // 太陽の輝きを強調するための光のブラーを追加
+        var sunGlowMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                'color': { value: new THREE.Color(0xffff00) },
+                'glowColor': { value: new THREE.Color(0xffff99) },
+                'glowIntensity': { value: 1.0 },
+            },
+            vertexShader: `
+                varying vec3 vPosition;
+                void main() {
+                    vPosition = position;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vPosition;
+                uniform vec3 glowColor;
+                uniform float glowIntensity;
+                void main() {
+                    float distance = length(vPosition);
+                    gl_FragColor = vec4(glowColor * glowIntensity * (1.0 / distance), 1.0);
+                }
+            `,
+            side: THREE.BackSide,
+            blending: THREE.AdditiveBlending,
+            transparent: true,
+        });
+
+        // 太陽の周りに光の球を追加
+        var sunGlowGeometry = new THREE.SphereGeometry(3.5, 32, 32); // 少し大きめの球体
+        var sunGlow = new THREE.Mesh(sunGlowGeometry, sunGlowMaterial);
+        scene.add(sunGlow);
+
+        // 惑星作成
+        function createPlanet(size, color, position) {
+            var planetGeometry = new THREE.SphereGeometry(size, 32, 32);
+            var planetMaterial = new THREE.MeshBasicMaterial({ color: color });
+            var planet = new THREE.Mesh(planetGeometry, planetMaterial);
+            planet.position.x = position;
+            return planet;
+        }
+
+        var earth = createPlanet(1, 0x0077ff, 10);
+        var earthOrbit = new THREE.Object3D(); 
+        earthOrbit.add(earth);
+        scene.add(earthOrbit);
+
+        var mars = createPlanet(0.8, 0xff4500, 15);
+        var marsOrbit = new THREE.Object3D();
+        marsOrbit.add(mars);
+        scene.add(marsOrbit);
+
+        var venus = createPlanet(0.9, 0xcccfcf, 8);
+        var venusOrbit = new THREE.Object3D();
+        venusOrbit.add(venus);
+        scene.add(venusOrbit);
+
+        var jupiter = createPlanet(1.5, 0xffd700, 20);
+        var jupiterOrbit = new THREE.Object3D();
+        jupiterOrbit.add(jupiter);
+        scene.add(jupiterOrbit);
+
+        var saturn = createPlanet(1.2, 0xd2b48c, 25);
+        var saturnOrbit = new THREE.Object3D();
+        saturnOrbit.add(saturn);
+        scene.add(saturnOrbit);
+
+        var pluto = createPlanet(0.3, 0x888888, 40);
+        var plutoOrbit = new THREE.Object3D();
+        plutoOrbit.add(pluto);
+        scene.add(plutoOrbit);
+
+        // 軌道作成
+        function createOrbit(radius) {
+            var geometry = new THREE.RingGeometry(radius - 0.05, radius + 0.05, 64);
+            var material = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+            var orbit = new THREE.Mesh(geometry, material);
+            orbit.rotation.x = Math.PI / 2;
+            return orbit;
+        }
+
+        scene.add(createOrbit(10));
+        scene.add(createOrbit(15));
+        scene.add(createOrbit(8));
+        scene.add(createOrbit(20));
+        scene.add(createOrbit(25));
+        scene.add(createOrbit(40));
+
+        // 土星のリング
+        var ringGeometry = new THREE.RingGeometry(2.5, 3, 64);
+        var ringMaterial = new THREE.MeshBasicMaterial({ color: 0xd2b48c, side: THREE.DoubleSide });
+        var ring = new THREE.Mesh(ringGeometry, ringMaterial);
+        ring.rotation.set(Math.PI / 2.2, 0, Math.PI / 6); // 斜めにする
+        saturn.add(ring);
+
+        // 照明
+        var light = new THREE.AmbientLight(0x404040);
+        scene.add(light);
+        var directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(5, 5, 5);
+        scene.add(directionalLight);
+
+        // カメラ設定
+        camera.position.z = 50;
+
+        // カメラ操作
+        var controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.2;
+        controls.enableZoom = true;
+
+        // 操作の検出
+        var isUserInteracting = false;
+        var lastInteractionTime = Date.now();
+        var autoRotationEnabled = false;
+
+        function onUserInteraction() {
+            isUserInteracting = true;
+            lastInteractionTime = Date.now();
+            autoRotationEnabled = false;
+        }
+
+        document.addEventListener('mousedown', onUserInteraction);
+        document.addEventListener('touchstart', onUserInteraction);
+        document.addEventListener('mousemove', onUserInteraction);
+        document.addEventListener('touchmove', onUserInteraction);
+
+        // 2秒後に自動回転開始
+        function checkForInactivity() {
+            if (!isUserInteracting && Date.now() - lastInteractionTime > 2000) {
+                autoRotationEnabled = true;
+            }
+            if (autoRotationEnabled) {
+                camera.rotation.y += 0.002;
+            }
+        }
+
+        // ウィンドウリサイズに対応
+        window.addEventListener('resize', function () {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+        });
+
+        // アニメーション
+        function animate() {
+            requestAnimationFrame(animate);
+
+            earth.rotation.y += 0.01;
+            mars.rotation.y += 0.01;
+            venus.rotation.y += 0.01;
+            jupiter.rotation.y += 0.005;
+            saturn.rotation.y += 0.003;
+            pluto.rotation.y += 0.002;
+
+            earthOrbit.rotation.y += 0.01;
+            marsOrbit.rotation.y += 0.005;
+            venusOrbit.rotation.y += 0.015;
+            jupiterOrbit.rotation.y += 0.003;
+            saturnOrbit.rotation.y += 0.002;
+            plutoOrbit.rotation.y += 0.001;
+
+            checkForInactivity();
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
